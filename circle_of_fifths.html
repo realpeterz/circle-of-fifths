@@ -178,7 +178,7 @@
             gap: 20px;
             background: #000;
             padding: 10px 30px;
-            border-radius: 60px;
+            border-radius: 16px;
             border: 1px solid rgba(255,255,255,0.2);
             box-shadow: 0 10px 40px rgba(0,0,0,0.8);
             z-index: 50;
@@ -436,18 +436,10 @@
         <div class="divider"></div>
         <div class="control-group">
             <span>Piano Keys</span>
-            <div class="btn-row" style="font-size: 0.42rem; color: #888; margin-top: 4px;">
-                WETYUOP
-            </div>
-            <div class="btn-row" style="font-size: 0.36rem; color: #666; margin-top: 2px;">
-                Bb Db Eb F# Ab Bb Db
-            </div>
-            <div class="btn-row" style="font-size: 0.42rem; color: #888;">
-                ASDFGHJKL;'
-            </div>
-            <div class="btn-row" style="font-size: 0.36rem; color: #666; margin-top: 2px;">
-                A B C D E F G A B C D
-            </div>
+            <div class="btn-row" style="font-size: 0.42rem; color: #888; margin-top: 4px; font-family: monospace; white-space: pre;"> W   R T   U I O   [ </div>
+            <div class="btn-row" style="font-size: 0.42rem; color: #666; margin-top: 2px; font-family: monospace; white-space: pre;">Bb  DbEb  F#Ab Bb  Db</div>
+            <div class="btn-row" style="font-size: 0.42rem; color: #888; margin-top: 2px; font-family: monospace; white-space: pre;">A S D F G H J K L ; '</div>
+            <div class="btn-row" style="font-size: 0.42rem; color: #666; margin-top: 2px; font-family: monospace; white-space: pre;">A B C D E F G A B C D</div>
         </div>
         <div class="divider"></div>
         <div class="control-group">
@@ -508,6 +500,10 @@
     ];
 
     const noteNames = ["C", "Db", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
+    
+    // Explicitly define blocked keys that should be silent in piano mode
+    // E, Y, P are the gaps between black keys
+    const blockedPianoKeys = ['KeyE', 'KeyY', 'KeyP'];
 
     // Piano keyboard layout - Standard piano layout
     // White keys: A S D F G H J K L ; '  (D = middle C)
@@ -527,12 +523,12 @@
         { note: "D", chromaticIndex: 2, freq: 587.33, code: "Quote", octaveOffset: 0 },
         // Black keys (top row)
         { note: "Bb", chromaticIndex: 10, freq: 233.08, code: "KeyW", octaveOffset: 0 },
-        { note: "Db", chromaticIndex: 1, freq: 277.18, code: "KeyE", octaveOffset: 0 },
+        { note: "Db", chromaticIndex: 1, freq: 277.18, code: "KeyR", octaveOffset: 0 },
         { note: "Eb", chromaticIndex: 3, freq: 311.13, code: "KeyT", octaveOffset: 0 },
-        { note: "F#", chromaticIndex: 6, freq: 369.99, code: "KeyY", octaveOffset: 0 },
-        { note: "Ab", chromaticIndex: 8, freq: 415.30, code: "KeyU", octaveOffset: 0 },
+        { note: "F#", chromaticIndex: 6, freq: 369.99, code: "KeyU", octaveOffset: 0 },
+        { note: "Ab", chromaticIndex: 8, freq: 415.30, code: "KeyI", octaveOffset: 0 },
         { note: "Bb", chromaticIndex: 10, freq: 466.16, code: "KeyO", octaveOffset: 0 },
-        { note: "Db", chromaticIndex: 1, freq: 554.37, code: "KeyP", octaveOffset: 0 },
+        { note: "Db", chromaticIndex: 1, freq: 554.37, code: "BracketLeft", octaveOffset: 0 },
     ];
 
     // -- AUDIO ENGINE --
@@ -1232,6 +1228,9 @@
                 return;
             } else {
                 // If not found in circle keys, try piano keys (for K, L, ;, ' etc.)
+                // But ignore blocked keys (E, Y, P) which are used for circle mode but should be silent in piano context
+                if (blockedPianoKeys.includes(e.code)) return;
+
                 const pianoKey = pianoKeys.find(i => i.code === e.code);
                 if(pianoKey) {
                     let chordType = 'default';
@@ -1249,6 +1248,9 @@
             }
         } else {
             // CAPS OFF: Use piano mode
+            // Check for blocked keys first
+            if (blockedPianoKeys.includes(e.code)) return;
+
             const pianoKey = pianoKeys.find(i => i.code === e.code);
             if(pianoKey) {
                 // Determine chord type based on modifier keys
@@ -1265,6 +1267,22 @@
             }
 
             // Fallback to circle keys (major) when caps is off
+            // ONLY if not a blocked key (though blocked keys are not in 'keys' usually, but 'keys' has KeyE/KeyY for circle)
+            // Actually, in Circle Mode (Caps OFF, but user hits a circle key that isn't a piano key), we let it play.
+            // BUT, KeyE and KeyY are in 'keys' (Circle of Fifths keys).
+            // If the user wants piano mode to be primary, we should prevent KeyE/KeyY from triggering circle notes if they are intended to be silent gaps.
+            // However, the prompt says "empty keys must not make a sound".
+            // Since KeyE and KeyY ARE valid keys in the Circle of Fifths (Eb and Ab), disabling them globally would break the Circle mode.
+            // The user said "Y key is still making a sound".
+            // This happens because 'pianoKey' lookup fails (correctly), but then it falls back to:
+            // "Fallback to circle keys (major) when caps is off" -> finds 'KeyY' in 'keys' array -> plays it.
+            
+            // Fix: In Piano Mode (Caps OFF), we should ONLY play keys that are in the piano layout.
+            // We should NOT fallback to circle keys if the intention is to mimic a piano keyboard primarily.
+            // OR, we strictly block the specific gap keys from triggering their Circle counterparts when in Piano Mode.
+            
+            if (blockedPianoKeys.includes(e.code)) return;
+
             const k = keys.find(i => i.code === e.code);
             if(k) {
                 // Determine chord type based on modifier keys
