@@ -476,7 +476,7 @@
     </div>
 
     <div class="overlay" id="overlay">
-        <button class="start-btn" onclick="startApp()">START ENGINE</button>
+        <button autofocus class="start-btn" onclick="startApp()" onkeydown="if (event.key === 'Enter') startApp()">START ENGINE</button>
     </div>
 
 <script>
@@ -634,7 +634,7 @@
             // Update hub for single note
             document.getElementById('hub-label').style.color = noteData.color;
             document.getElementById('hub-label').textContent = noteData.note;
-            document.getElementById('hub-mood').textContent = 'Single Note';
+            document.getElementById('hub-mood').textContent = noteData.mood || 'Single Note';
 
             panel.classList.add('visible');
             return;
@@ -660,7 +660,7 @@
 
             document.getElementById('hub-label').style.color = noteData.color;
             document.getElementById('hub-label').textContent = noteData.note;
-            document.getElementById('hub-mood').textContent = 'Single Note';
+            document.getElementById('hub-mood').textContent = noteData.mood || 'Single Note';
 
             panel.classList.add('visible');
             return;
@@ -719,7 +719,8 @@
             activeNotes.set(uniqueId, {
                 chromaticIndex: actualChromaticIndex,
                 note: actualNote,
-                color: data.color
+                color: data.color,
+                mood: isInner ? data.minMood : data.majMood
             });
         }
 
@@ -806,7 +807,8 @@
             activeNotes.set(uniqueId, {
                 chromaticIndex: pianoKey.chromaticIndex,
                 note: pianoKey.note,
-                color: circleKey ? circleKey.color : "#45a29e"
+                color: circleKey ? circleKey.color : "#45a29e",
+                mood: circleKey ? (isMinorContext ? circleKey.minMood : circleKey.majMood) : ""
             });
         }
 
@@ -945,7 +947,7 @@
     const svg = document.getElementById('wheel');
     const C = 85;
 
-    const rOuter = 70;
+    const rOuter = 75; // outer ring radius
     const rSplit = 45; // Boundary between Major and Minor (expanded outer ring)
     const rInner = 15; // Center Hole
 
