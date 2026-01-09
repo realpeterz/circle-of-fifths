@@ -4,12 +4,11 @@ An elegant, interactive web application that visualizes the Circle of Fifths - a
 
 ## Features
 
-- **Interactive Circle**: Click on any segment to explore different keys
-- **Real-time Display**: Shows the selected key, its relative minor, and chord information
-- **Visual Feedback**: Active segments are highlighted with beautiful animations
-- **Glassmorphism Design**: Modern UI with backdrop blur effects and smooth transitions
-- **Responsive Layout**: Works beautifully on desktop and mobile devices
-- **Keyboard Support**: Use your computer keyboard to play notes (with Caps Lock indicator)
+- **Interactive Circle**: Click on any segment to explore different keys in the circle
+- **Key Relationships**: See the selected key and its relative minor side by side
+- **Chord Tones**: View the notes that make up the tonic chord
+- **Intervals**: Identify the root, 3rd, and 5th for each key
+- **Keyboard Support**: Use your computer keyboard to audition notes
 
 ## Musical Information Displayed
 
@@ -19,14 +18,6 @@ For each key, the application shows:
 - **Chord Notes**: The notes that make up the tonic chord
 - **Intervals**: The chord intervals (Root, 3rd, 5th)
 
-## Design Elements
-
-- **Dark Theme**: Sophisticated dark background with gradient text effects
-- **Color-Coded Segments**: Each key has its own color in the circle
-- **Smooth Animations**: Hover effects and transitions for enhanced user experience
-- **Center Hub**: Displays the currently selected key with mood description
-- **Chord Information Panel**: Shows detailed chord information below the circle
-
 ## How to Use
 
 1. **Click on any segment** in the circle to select a key
@@ -34,29 +25,13 @@ For each key, the application shows:
 3. **Use keyboard controls** (if available) to play notes
 4. **Explore relationships** between different keys and their relative minors
 
-## Technical Details
-
-- Built with vanilla HTML, CSS, and JavaScript
-- Uses SVG for the circular visualization
-- Implements modern CSS features like `backdrop-filter` for glass effects
-- Responsive design using viewport units and flexible layouts
-- Smooth animations with CSS transitions
-
 ## File Structure
 
 ```
 circle-of-fifths/
 ├── README.md
-└── circle_of_fifths.html
+└── index.html
 ```
-
-## Browser Compatibility
-
-Works best in modern browsers that support:
-- CSS backdrop-filter
-- SVG animations
-- Modern CSS grid and flexbox
-- ES6+ JavaScript features
 
 ## Educational Value
 
@@ -68,4 +43,4 @@ This tool is perfect for:
 
 ---
 
-*Open `circle_of_fifths.html` in your web browser to start exploring the Circle of Fifths!*
+*Open `index.html` in your web browser to start exploring the Circle of Fifths!*
