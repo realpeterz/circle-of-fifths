@@ -1,0 +1,1344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Circle of Fifths Keyboard</title>
+    <style>
+        :root {
+            --bg-color: #050505;
+            --text-color: #f0f0f0;
+            --glass-bg: rgba(20, 20, 25, 0.9);
+            --glass-border: 1px solid rgba(255, 255, 255, 0.12);
+            --highlight: #45a29e;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        header {
+            position: absolute;
+            top: 20px;
+            text-align: center;
+            z-index: 10;
+            pointer-events: none;
+        }
+        h1 {
+            font-weight: 300;
+            text-transform: uppercase;
+            letter-spacing: 6px;
+            font-size: 1.6rem;
+            margin: 0;
+            background: linear-gradient(to right, #fff, #aaa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .subtitle {
+            font-size: 0.8rem;
+            color: #888;
+            margin-top: 8px;
+            letter-spacing: 1px;
+        }
+
+        /* Container */
+        .app-container {
+            position: relative;
+            width: 85vmin;
+            max-width: 600px;
+            aspect-ratio: 1 / 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 80px; /* Space for Chord Info */
+        }
+
+        svg {
+            width: 100%;
+            height: 100%;
+            overflow: visible;
+            filter: drop-shadow(0 0 40px rgba(0,0,0,0.8));
+        }
+
+        /* Segments */
+        .segment-path {
+            cursor: pointer;
+            transition: all 0.2s ease;
+            stroke: #050505;
+            stroke-width: 2.5px;
+        }
+        .segment-path:hover {
+            opacity: 1 !important;
+            filter: brightness(1.3);
+            transform: scale(1.01);
+            transform-origin: center;
+        }
+        .segment-path.active {
+            opacity: 1 !important;
+            filter: brightness(1.6) drop-shadow(0 0 20px currentColor);
+            z-index: 100;
+        }
+
+        /* Text Styling */
+        .label-text { 
+            pointer-events: none; 
+            text-anchor: middle; 
+            dominant-baseline: central; 
+        }
+        
+        .note-label-major { 
+            font-size: 8px; /* Bigger */
+            font-weight: 900; 
+            fill: #ffffff; 
+            text-shadow: 0 2px 10px rgba(0,0,0,1);
+        }
+
+        .number-label { 
+            font-size: 3.5px; 
+            fill: rgba(255,255,255,0.7); 
+            font-weight: 700; 
+            font-family: monospace;
+        }
+
+        .note-label-minor { 
+            font-size: 4.5px; 
+            font-weight: 600; 
+            fill: rgba(255,255,255,0.9); 
+            text-shadow: 0 1px 5px rgba(0,0,0,1);
+        }
+
+        /* Center Hub */
+        .center-hub {
+            position: absolute;
+            width: 30%; 
+            height: 30%;
+            border-radius: 50%;
+            background: var(--glass-bg);
+            backdrop-filter: blur(25px);
+            border: var(--glass-border);
+            box-shadow: inset 0 0 60px rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            z-index: 20;
+            pointer-events: none;
+            transition: border-color 0.3s ease;
+            padding: 1rem;
+        }
+        .hub-label { font-size: 3rem; font-weight: 800; line-height: 1; margin: 0; }
+        .hub-mood { font-size: 0.75rem; color: #bbb; font-style: italic; margin: 5px 0; line-height: 1.2; }
+        .hub-instructions { font-size: 0.55rem; color: #777; margin-top: 8px; line-height: 1.4; max-width: 85%; text-align: center; }
+        
+        /* New Chord Explainer Panel (Below Circle) */
+        .chord-display {
+            position: absolute;
+            bottom: -70px; /* Below the circle */
+            width: 90%;
+            background: rgba(15, 15, 20, 0.8);
+            border: 1px solid rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            text-align: center;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.3s ease;
+            pointer-events: none;
+        }
+        .chord-display.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .chord-info-block { display: flex; flex-direction: column; gap: 4px; }
+        .chord-title { font-size: 0.9rem; font-weight: 800; color: #fff; letter-spacing: 1px; }
+        .chord-notes { font-size: 1.1rem; color: var(--highlight); font-family: monospace; font-weight: 700; }
+        .chord-intervals { font-size: 0.65rem; color: #888; text-transform: uppercase; }
+
+        /* Controls */
+        .controls-bar {
+            position: absolute;
+            bottom: 20px;
+            display: flex;
+            gap: 20px;
+            background: #000;
+            padding: 10px 30px;
+            border-radius: 60px;
+            border: 1px solid rgba(255,255,255,0.2);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+            z-index: 50;
+        }
+        
+        .control-group {
+            display: flex; flex-direction: column; align-items: center;
+            font-size: 0.6rem; color: #666; letter-spacing: 1px; font-weight: 700;
+        }
+        
+        .btn-row { display: flex; gap: 8px; margin-top: 4px; align-items: center; }
+
+        .caps-indicator {
+            width: 8px; height: 8px; border-radius: 50%; background: #333;
+            box-shadow: inset 0 0 2px #000; transition: all 0.2s; margin-right: 5px;
+        }
+        .caps-indicator.on {
+            background: #00ff00;
+            box-shadow: 0 0 10px #00ff00;
+        }
+        .caps-text { font-size: 0.65rem; color: #555; transition: color 0.2s; }
+        .caps-text.on { color: #fff; }
+
+        .divider { width: 1px; height: 30px; background: rgba(255,255,255,0.1); }
+        .key-badge { padding: 4px 8px; border: 1px solid #444; background: rgba(255,255,255,0.03); border-radius: 6px; color: #aaa; font-family: monospace; }
+        
+        .overlay {
+            position: fixed; inset: 0; background: #050505;
+            display: flex; justify-content: center; align-items: center;
+            z-index: 100; transition: opacity 0.6s ease;
+        }
+        .start-btn {
+            background: #fff; color: #000; padding: 18px 50px; border-radius: 50px;
+            font-weight: 800; letter-spacing: 2px; cursor: pointer; border: none; font-size: 1rem;
+            transition: transform 0.2s;
+        }
+        .start-btn:hover { transform: scale(1.05); }
+
+        /* Responsive Design */
+        @media (max-height: 800px) and (min-width: 768px) {
+            /* Smaller desktop screens - move chord display to top left */
+            .chord-display {
+                position: fixed;
+                top: 20px;
+                left: 20px;
+                bottom: auto;
+                width: auto;
+                min-width: 200px;
+                padding: 8px 12px;
+                z-index: 100;
+            }
+            
+            /* Shrink header for smaller screens */
+            header {
+                top: 15px;
+            }
+            
+            h1 {
+                font-size: 1.2rem;
+                letter-spacing: 4px;
+            }
+            
+            .subtitle {
+                font-size: 0.7rem;
+            }
+            
+            /* Reduce container size */
+            .app-container {
+                width: 70vmin;
+                max-width: 500px;
+                margin-bottom: 60px;
+            }
+            
+            /* Shrink center hub */
+            .center-hub {
+                width: 25%;
+                height: 25%;
+                padding: 0.5rem;
+            }
+            
+            .hub-label {
+                font-size: 2.5rem;
+            }
+            
+            .hub-mood {
+                font-size: 0.65rem;
+            }
+            
+            .hub-instructions {
+                font-size: 0.5rem;
+            }
+            
+            /* Reduce controls bar size */
+            .controls-bar {
+                bottom: 15px;
+                padding: 8px 20px;
+                gap: 15px;
+            }
+            
+            .control-group {
+                font-size: 0.55rem;
+            }
+            
+            /* Shrink chord display elements */
+            .chord-title {
+                font-size: 0.8rem;
+            }
+            
+            .chord-notes {
+                font-size: 1rem;
+            }
+            
+            .chord-intervals {
+                font-size: 0.6rem;
+            }
+        }
+        
+        @media (max-height: 700px) {
+            /* Even smaller screens */
+            h1 {
+                font-size: 1rem;
+                letter-spacing: 3px;
+            }
+            
+            .subtitle {
+                font-size: 0.6rem;
+            }
+            
+            .app-container {
+                width: 60vmin;
+                max-width: 400px;
+                margin-bottom: 50px;
+            }
+            
+            .center-hub {
+                width: 20%;
+                height: 20%;
+            }
+            
+            .hub-label {
+                font-size: 2rem;
+            }
+            
+            .hub-mood {
+                font-size: 0.6rem;
+            }
+            
+            .hub-instructions {
+                display: none; /* Hide instructions on very small screens */
+            }
+            
+            .chord-display {
+                min-width: 180px;
+                padding: 6px 10px;
+            }
+            
+            .controls-bar {
+                bottom: 10px;
+                padding: 6px 15px;
+                gap: 12px;
+            }
+        }
+        
+        @media (max-width: 767px) {
+            /* Mobile devices */
+            header {
+                top: 10px;
+            }
+            
+            h1 {
+                font-size: 1rem;
+                letter-spacing: 2px;
+            }
+            
+            .subtitle {
+                font-size: 0.6rem;
+            }
+            
+            .app-container {
+                width: 90vmin;
+                margin-bottom: 40px;
+            }
+            
+            .chord-display {
+                position: fixed;
+                top: 10px;
+                left: 10px;
+                right: 10px;
+                bottom: auto;
+                width: auto;
+                min-width: unset;
+                max-width: calc(100% - 20px);
+                padding: 6px 10px;
+                z-index: 100;
+            }
+            
+            .controls-bar {
+                bottom: 5px;
+                padding: 5px 10px;
+                gap: 8px;
+                flex-wrap: wrap;
+                border-radius: 20px;
+            }
+            
+            .control-group {
+                font-size: 0.5rem;
+            }
+        }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Circle of Fifths Keyboard</h1>
+        <div class="subtitle">Piano Keyboard (D = Middle C) · Circle (Caps = Minor) · Multi-Note Detection</div>
+    </header>
+
+    <div class="app-container">
+        <!-- Expanded Viewbox 170x170 for extra padding -->
+        <svg viewBox="0 0 170 170" id="wheel"></svg>
+        
+        <div class="center-hub" id="hub">
+            <div class="hub-label" id="hub-label">C</div>
+            <div class="hub-mood" id="hub-mood">Select a key</div>
+            <div class="hub-instructions">Press multiple keys for dyads, triads & chords</div>
+        </div>
+
+        <!-- Educational Content Panel -->
+        <div class="chord-display" id="chord-display">
+            <div class="chord-info-block">
+                <span class="chord-title" id="cd-name">C Major</span>
+            </div>
+            <div class="divider"></div>
+            <div class="chord-info-block">
+                <span class="chord-notes" id="cd-notes">C - E - G</span>
+                <span class="chord-intervals" id="cd-intervals">Root - 3rd - 5th</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="controls-bar">
+        <div class="control-group">
+            <span>Instrument</span>
+            <div class="btn-row">
+                <select id="instrument-select" style="background: rgba(255,255,255,0.05); border: 1px solid #444; color: #aaa; padding: 2px 8px; border-radius: 4px; font-size: 0.65rem;">
+                    <option value="default">Synth</option>
+                    <option value="piano">Piano</option>
+                    <option value="organ">Organ</option>
+                    <option value="strings">Strings</option>
+                    <option value="pad">Pad</option>
+                </select>
+            </div>
+        </div>
+        <div class="divider"></div>
+        <div class="control-group">
+            <span>Piano Keys</span>
+            <div class="btn-row" style="font-size: 0.42rem; color: #888; margin-top: 4px;">
+                WETYUOP
+            </div>
+            <div class="btn-row" style="font-size: 0.36rem; color: #666; margin-top: 2px;">
+                Bb Db Eb F# Ab Bb Db
+            </div>
+            <div class="btn-row" style="font-size: 0.42rem; color: #888;">
+                ASDFGHJKL;'
+            </div>
+            <div class="btn-row" style="font-size: 0.36rem; color: #666; margin-top: 2px;">
+                A B C D E F G A B C D
+            </div>
+        </div>
+        <div class="divider"></div>
+        <div class="control-group">
+            <span>Circle Mode</span>
+            <div class="btn-row">
+                <div class="caps-indicator" id="caps-light"></div>
+                <span class="caps-text" id="caps-text" style="font-size: 0.6rem;">CAPS LOCK</span>
+            </div>
+            <div class="btn-row" style="font-size: 0.42rem; color: #888; margin-top: 2px;">
+                Home: <span class="key-badge" style="padding: 2px 6px; font-size: 0.42rem;">D</span> = C <span class="key-badge" style="padding: 2px 6px; font-size: 0.42rem;">A</span> = Am
+            </div>
+        </div>
+        <div class="divider"></div>
+        <div class="control-group">
+            <span>Chord</span>
+            <div class="btn-row" style="font-size: 0.48rem; color: #888;">
+                <span class="key-badge">⇧</span> · <span class="key-badge">⌃</span> · <span class="key-badge">⌥</span>
+            </div>
+        </div>
+        <div class="divider"></div>
+        <div class="control-group">
+            <span>Octave</span>
+            <div class="btn-row">
+                <span class="key-badge">↑ ↓</span> <span id="octave-display" style="color: #aaa; min-width: 20px; text-align: center;">0</span>
+            </div>
+        </div>
+        <div class="divider"></div>
+        <div class="control-group">
+            <span>Temp Shift</span>
+            <div class="btn-row" style="font-size: 0.55rem;">
+                <span class="key-badge">Space</span> <span class="key-badge">Enter</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="overlay" id="overlay">
+        <button class="start-btn" onclick="startApp()">START ENGINE</button>
+    </div>
+
+<script>
+    /**
+     * DATA & THEORY
+     * 'chromaticIndex' maps C=0, C#=1 ... B=11 for chord spelling
+     */
+    const keys = [
+        { label: "1", note: "C", minNote: "Am", chromaticIndex: 0, freq: 261.63, minFreq: 220.00, color: "#ff3b30", code: "KeyA", majMood: "Innocent & Pure", minMood: "Pious & Tender" },
+        { label: "5", note: "G", minNote: "Em", chromaticIndex: 7, freq: 392.00, minFreq: 329.63, color: "#ff9500", code: "KeyG", majMood: "Rustic & Idyllic", minMood: "Grief & Restless" },
+        { label: "2", note: "D", minNote: "Bm", chromaticIndex: 2, freq: 293.66, minFreq: 246.94, color: "#ffcc00", code: "KeyS", majMood: "Triumphant & Victorious", minMood: "Solitary & Patient" },
+        { label: "6", note: "A", minNote: "F#m",chromaticIndex: 9, freq: 440.00, minFreq: 369.99, color: "#34c759", code: "KeyH", majMood: "Cheerfulness & Trust", minMood: "Gloomy & Resentful" },
+        { label: "3", note: "E", minNote: "C#m",chromaticIndex: 4, freq: 329.63, minFreq: 277.18, color: "#00c7be", code: "KeyD", majMood: "Noisy Joy", minMood: "Penitential Lament" },
+        { label: "7", note: "B", minNote: "G#m",chromaticIndex: 11,freq: 493.88, minFreq: 415.30, color: "#30b0c7", code: "KeyJ", majMood: "Wild Passions", minMood: "Suffocation of Heart" },
+        { label: "4#",note: "F#",minNote: "D#m",chromaticIndex: 6, freq: 369.99, minFreq: 311.13, color: "#007aff", code: "KeyT", majMood: "Triumph over Difficulty", minMood: "Deepest Distress" },
+        { label: "2b",note: "Db",minNote: "Bbm",chromaticIndex: 1, freq: 277.18, minFreq: 233.08, color: "#5856d6", code: "KeyW", majMood: "Leering & Raillery", minMood: "Surly & Mocking" },
+        { label: "6b",note: "Ab",minNote: "Fm", chromaticIndex: 8, freq: 415.30, minFreq: 349.23, color: "#af52de", code: "KeyY", majMood: "Grave & Death", minMood: "Funereal Lament" },
+        { label: "3b",note: "Eb",minNote: "Cm", chromaticIndex: 3, freq: 311.13, minFreq: 261.63, color: "#ff2d55", code: "KeyE", majMood: "Love & Devotion", minMood: "Unhappy Love" },
+        { label: "7b",note: "Bb",minNote: "Gm", chromaticIndex: 10,freq: 466.16, minFreq: 392.00, color: "#ff3b30", code: "KeyU", majMood: "Cheerful Love", minMood: "Discontent & Worry" },
+        { label: "4", note: "F", minNote: "Dm", chromaticIndex: 5, freq: 349.23, minFreq: 293.66, color: "#ff9500", code: "KeyF", majMood: "Complaisance & Calm", minMood: "Melancholy & Spleen" }
+    ];
+
+    const noteNames = ["C", "Db", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
+
+    // Piano keyboard layout - Standard piano layout
+    // White keys: A S D F G H J K L ; '  (D = middle C)
+    // Black keys: W E   T Y U   O P (row above)
+    const pianoKeys = [
+        // White keys (home row) - D is middle C
+        { note: "A", chromaticIndex: 9, freq: 220.00, code: "KeyA", octaveOffset: 0 },
+        { note: "B", chromaticIndex: 11, freq: 246.94, code: "KeyS", octaveOffset: 0 },
+        { note: "C", chromaticIndex: 0, freq: 261.63, code: "KeyD", octaveOffset: 0, isHome: true }, // D key = middle C
+        { note: "D", chromaticIndex: 2, freq: 293.66, code: "KeyF", octaveOffset: 0 },
+        { note: "E", chromaticIndex: 4, freq: 329.63, code: "KeyG", octaveOffset: 0 },
+        { note: "F", chromaticIndex: 5, freq: 349.23, code: "KeyH", octaveOffset: 0 },
+        { note: "G", chromaticIndex: 7, freq: 392.00, code: "KeyJ", octaveOffset: 0 },
+        { note: "A", chromaticIndex: 9, freq: 440.00, code: "KeyK", octaveOffset: 0 },
+        { note: "B", chromaticIndex: 11, freq: 493.88, code: "KeyL", octaveOffset: 0 },
+        { note: "C", chromaticIndex: 0, freq: 523.25, code: "Semicolon", octaveOffset: 0 },
+        { note: "D", chromaticIndex: 2, freq: 587.33, code: "Quote", octaveOffset: 0 },
+        // Black keys (top row)
+        { note: "Bb", chromaticIndex: 10, freq: 233.08, code: "KeyW", octaveOffset: 0 },
+        { note: "Db", chromaticIndex: 1, freq: 277.18, code: "KeyE", octaveOffset: 0 },
+        { note: "Eb", chromaticIndex: 3, freq: 311.13, code: "KeyT", octaveOffset: 0 },
+        { note: "F#", chromaticIndex: 6, freq: 369.99, code: "KeyY", octaveOffset: 0 },
+        { note: "Ab", chromaticIndex: 8, freq: 415.30, code: "KeyU", octaveOffset: 0 },
+        { note: "Bb", chromaticIndex: 10, freq: 466.16, code: "KeyO", octaveOffset: 0 },
+        { note: "Db", chromaticIndex: 1, freq: 554.37, code: "KeyP", octaveOffset: 0 },
+    ];
+
+    // -- AUDIO ENGINE --
+    let audioCtx, masterGain, compressor, filter;
+    let activeVoices = {};
+    let activeNotes = new Map(); // Track currently playing notes: code -> {chromaticIndex, note, color}
+    let state = { baseOctave: 0, tempOctave: 0, instrument: 'default' };
+
+    // Instrument profiles
+    const instruments = {
+        default: { name: 'Synth', osc1: 'triangle', osc2: 'sine', filterFreq: 3500, attack: 0.05, release: 0.5 },
+        piano: { name: 'Piano', osc1: 'triangle', osc2: 'sine', filterFreq: 5000, attack: 0.01, release: 0.8 },
+        organ: { name: 'Organ', osc1: 'sine', osc2: 'square', filterFreq: 4000, attack: 0.02, release: 0.3 },
+        strings: { name: 'Strings', osc1: 'sawtooth', osc2: 'triangle', filterFreq: 3000, attack: 0.2, release: 1.2 },
+        pad: { name: 'Pad', osc1: 'sawtooth', osc2: 'sine', filterFreq: 2500, attack: 0.3, release: 1.5 }
+    };
+
+    function initAudio() {
+        if (audioCtx) return;
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioContext();
+        filter = audioCtx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 3500; filter.Q.value = 0.5;
+        compressor = audioCtx.createDynamicsCompressor(); compressor.threshold.value = -12;
+        masterGain = audioCtx.createGain(); masterGain.gain.value = 0.7;
+        filter.connect(compressor); compressor.connect(masterGain); masterGain.connect(audioCtx.destination);
+    }
+
+    // Helper: Spell Chord
+    function spellChord(rootIndex, intervals) {
+        return intervals.map(interval => {
+            const noteIndex = (rootIndex + interval) % 12;
+            return noteNames[noteIndex];
+        }).join(" - ");
+    }
+
+    // Helper: Get interval name from semitones
+    function getIntervalName(semitones) {
+        const intervalNames = {
+            0: "Unison", 1: "Minor 2nd", 2: "Major 2nd", 3: "Minor 3rd",
+            4: "Major 3rd", 5: "Perfect 4th", 6: "Tritone", 7: "Perfect 5th",
+            8: "Minor 6th", 9: "Major 6th", 10: "Minor 7th", 11: "Major 7th"
+        };
+        return intervalNames[semitones % 12] || "Unknown";
+    }
+
+    // Helper: Detect chord type from intervals
+    function detectChordType(intervals) {
+        const pattern = intervals.join(',');
+
+        // Dyads (2 notes)
+        if (intervals.length === 2) {
+            const semitones = intervals[1];
+            return {
+                type: 'dyad',
+                name: 'Dyad',
+                fullName: `Dyad - ${getIntervalName(semitones)}`,
+                intervalText: getIntervalName(semitones)
+            };
+        }
+
+        // Triads (3 notes)
+        if (intervals.length === 3) {
+            if (pattern === '0,4,7') return { type: 'triad', name: 'Major', fullName: 'Major Triad', intervalText: 'Root - Maj 3rd - Perf 5th' };
+            if (pattern === '0,3,7') return { type: 'triad', name: 'Minor', fullName: 'Minor Triad', intervalText: 'Root - Min 3rd - Perf 5th' };
+            if (pattern === '0,3,6') return { type: 'triad', name: 'Diminished', fullName: 'Diminished Triad', intervalText: 'Root - Min 3rd - Dim 5th' };
+            if (pattern === '0,4,8') return { type: 'triad', name: 'Augmented', fullName: 'Augmented Triad', intervalText: 'Root - Maj 3rd - Aug 5th' };
+        }
+
+        // 7th Chords (4 notes)
+        if (intervals.length === 4) {
+            if (pattern === '0,4,7,11') return { type: 'chord', name: 'Major 7th', fullName: 'Major 7th', intervalText: 'Root - Maj 3rd - Perf 5th - Maj 7th' };
+            if (pattern === '0,3,7,10') return { type: 'chord', name: 'Minor 7th', fullName: 'Minor 7th', intervalText: 'Root - Min 3rd - Perf 5th - Min 7th' };
+            if (pattern === '0,4,7,10') return { type: 'chord', name: 'Dominant 7th', fullName: 'Dominant 7th', intervalText: 'Root - Maj 3rd - Perf 5th - Min 7th' };
+            if (pattern === '0,3,6,10') return { type: 'chord', name: 'Half-Diminished 7th', fullName: 'Half-Diminished 7th', intervalText: 'Root - Min 3rd - Dim 5th - Min 7th' };
+            if (pattern === '0,3,6,9') return { type: 'chord', name: 'Diminished 7th', fullName: 'Diminished 7th', intervalText: 'Root - Min 3rd - Dim 5th - Dim 7th' };
+        }
+
+        // 5+ notes
+        if (intervals.length >= 5) {
+            return { type: 'chord', name: 'Extended Chord', fullName: 'Extended Chord', intervalText: 'Multiple Extensions' };
+        }
+
+        return { type: 'unknown', name: 'Unknown', fullName: 'Unknown Chord', intervalText: 'Custom Intervals' };
+    }
+
+    // Analyze currently active notes and update display
+    function analyzeActiveNotes() {
+        const noteCount = activeNotes.size;
+
+        if (noteCount === 0) {
+            document.getElementById('chord-display').classList.remove('visible');
+            return;
+        }
+
+        if (noteCount === 1) {
+            // Single note
+            const [noteData] = activeNotes.values();
+            const panel = document.getElementById('chord-display');
+            document.getElementById('cd-name').textContent = noteData.note;
+            document.getElementById('cd-notes').textContent = noteData.note;
+            document.getElementById('cd-intervals').textContent = 'Single Note';
+
+            // Update hub for single note
+            document.getElementById('hub-label').style.color = noteData.color;
+            document.getElementById('hub-label').textContent = noteData.note;
+            document.getElementById('hub-mood').textContent = 'Single Note';
+
+            panel.classList.add('visible');
+            return;
+        }
+
+        // Multiple notes: deduplicate by chromatic index (same pitch class), then sort
+        const uniqueNotesMap = new Map();
+        for (const noteData of activeNotes.values()) {
+            if (!uniqueNotesMap.has(noteData.chromaticIndex)) {
+                uniqueNotesMap.set(noteData.chromaticIndex, noteData);
+            }
+        }
+        const notesArray = Array.from(uniqueNotesMap.values());
+        notesArray.sort((a, b) => a.chromaticIndex - b.chromaticIndex);
+
+        // Recheck if only one unique note after deduplication
+        if (notesArray.length === 1) {
+            const noteData = notesArray[0];
+            const panel = document.getElementById('chord-display');
+            document.getElementById('cd-name').textContent = noteData.note;
+            document.getElementById('cd-notes').textContent = noteData.note;
+            document.getElementById('cd-intervals').textContent = 'Single Note';
+
+            document.getElementById('hub-label').style.color = noteData.color;
+            document.getElementById('hub-label').textContent = noteData.note;
+            document.getElementById('hub-mood').textContent = 'Single Note';
+
+            panel.classList.add('visible');
+            return;
+        }
+
+        const rootNote = notesArray[0];
+        const rootIndex = rootNote.chromaticIndex;
+
+        // Calculate intervals from root
+        const intervals = notesArray.map(n => {
+            let interval = n.chromaticIndex - rootIndex;
+            if (interval < 0) interval += 12;
+            return interval;
+        });
+
+        // Detect chord type
+        const chordInfo = detectChordType(intervals);
+        const spelled = notesArray.map(n => n.note).join(" - ");
+
+        // Build full name with root note
+        let fullName;
+        if (chordInfo.type === 'dyad') {
+            fullName = chordInfo.fullName;
+        } else {
+            fullName = `${rootNote.note} ${chordInfo.fullName}`;
+        }
+
+        // Update hub to show root note and chord type
+        document.getElementById('hub-label').style.color = rootNote.color;
+        document.getElementById('hub-label').textContent = rootNote.note;
+        document.getElementById('hub-mood').textContent = chordInfo.type === 'dyad' ? chordInfo.name : chordInfo.fullName;
+
+        // Update display
+        const panel = document.getElementById('chord-display');
+        document.getElementById('cd-name').textContent = fullName;
+        document.getElementById('cd-notes').textContent = spelled;
+        document.getElementById('cd-intervals').textContent = chordInfo.intervalText;
+        panel.classList.add('visible');
+    }
+
+    function startNote(data, uniqueId, isInner, chordType = 'default') {
+        if(!audioCtx) return;
+        if(activeVoices[uniqueId]) return;
+
+        const now = audioCtx.currentTime;
+
+        // Determine target frequency
+        const targetFreq = isInner ? data.minFreq : data.freq;
+
+        // Determine the actual note being played
+        const actualNote = isInner ? data.minNote : data.note;
+        const actualChromaticIndex = isInner ? (data.chromaticIndex + 9) % 12 : data.chromaticIndex;
+
+        // Track this note for multi-note detection (only if not using chord modifiers)
+        if (chordType === 'default') {
+            activeNotes.set(uniqueId, {
+                chromaticIndex: actualChromaticIndex,
+                note: actualNote,
+                color: data.color
+            });
+        }
+
+        // Determine intervals based on ring and chord type
+        let intervals;
+        let chordName;
+
+        if (chordType === 'shift') {
+            // Shift key: Triads (Major for outer, Minor for inner)
+            intervals = isInner ? [0, 3, 7] : [0, 4, 7];
+            chordName = isInner ? 'Minor' : 'Major';
+        } else if (chordType === 'ctrl') {
+            // Control key: Diminished for outer, Minor for inner
+            intervals = isInner ? [0, 3, 7] : [0, 3, 6];
+            chordName = isInner ? 'Minor' : 'Diminished';
+        } else if (chordType === 'alt') {
+            // Option/Alt key: 7th chords
+            intervals = isInner ? [0, 3, 7, 10] : [0, 4, 7, 11];
+            chordName = isInner ? 'Minor 7th' : 'Major 7th';
+        } else {
+            // Default: Single note for both rings
+            intervals = [0];
+            chordName = 'Single Note';
+        }
+
+        // Calculate Frequency
+        const totalOctave = state.baseOctave + state.tempOctave;
+        const multiplier = Math.pow(2, totalOctave);
+        const baseFreq = targetFreq * multiplier;
+
+        // Synthesis with instrument profile
+        const instrument = instruments[state.instrument];
+        const voice = { oscs: [], gain: audioCtx.createGain() };
+        voice.gain.gain.setValueAtTime(0, now);
+        voice.gain.gain.linearRampToValueAtTime(0.3 / intervals.length, now + instrument.attack);
+        voice.gain.connect(filter);
+
+        intervals.forEach((r_semitones, i) => {
+            const ratio = Math.pow(2, r_semitones / 12);
+            const osc1 = audioCtx.createOscillator(); osc1.type = instrument.osc1; osc1.frequency.value = baseFreq * ratio;
+            const osc2 = audioCtx.createOscillator(); osc2.type = instrument.osc2; osc2.frequency.value = baseFreq * ratio;
+            if(i > 0) osc1.detune.value = Math.random() * 5 - 2.5;
+            osc1.connect(voice.gain); osc2.connect(voice.gain);
+            osc1.start(now); osc2.start(now);
+            voice.oscs.push(osc1, osc2);
+        });
+
+        activeVoices[uniqueId] = voice;
+
+        // Update Visuals
+        highlightSegment(data.code, true, isInner);
+
+        // Update display based on mode
+        if (chordType === 'default') {
+            // Multi-note detection mode
+            updateHub(data, isInner, '');
+            analyzeActiveNotes();
+        } else {
+            // Preset chord mode (with modifiers)
+            updateHub(data, isInner, chordName);
+            showChordInfo(data, isInner, intervals, chordName);
+        }
+    }
+
+    function startPianoNote(pianoKey, uniqueId, chordType = 'default', forceMinor = false) {
+        if(!audioCtx) return;
+        if(activeVoices[uniqueId]) return;
+
+        const now = audioCtx.currentTime;
+
+        // Use forceMinor to determine context (set when Caps Lock is on)
+        const isMinorContext = forceMinor;
+
+        // Track this note for multi-note detection (only if not using chord modifiers)
+        if (chordType === 'default') {
+            // Find corresponding circle key for color
+            let circleKey;
+            if(isMinorContext) {
+                circleKey = keys.find(k => k.minNote.startsWith(pianoKey.note));
+            } else {
+                circleKey = keys.find(k => k.note === pianoKey.note);
+            }
+
+            activeNotes.set(uniqueId, {
+                chromaticIndex: pianoKey.chromaticIndex,
+                note: pianoKey.note,
+                color: circleKey ? circleKey.color : "#45a29e"
+            });
+        }
+
+        // Determine intervals based on chord type
+        let intervals;
+        let chordName;
+
+        if (chordType === 'shift') {
+            // Minor triad for minor context, Major for others
+            intervals = isMinorContext ? [0, 3, 7] : [0, 4, 7];
+            chordName = isMinorContext ? 'Minor' : 'Major';
+        } else if (chordType === 'ctrl') {
+            // Diminished for both
+            intervals = [0, 3, 6];
+            chordName = 'Diminished';
+        } else if (chordType === 'alt') {
+            // Minor 7th for minor context, Major 7th for others
+            intervals = isMinorContext ? [0, 3, 7, 10] : [0, 4, 7, 11];
+            chordName = isMinorContext ? 'Minor 7th' : 'Major 7th';
+        } else {
+            // Single note
+            intervals = [0];
+            chordName = 'Single Note';
+        }
+
+        // Calculate frequency with octave offsets
+        const totalOctave = state.baseOctave + state.tempOctave + (pianoKey.octaveOffset || 0);
+        const multiplier = Math.pow(2, totalOctave);
+        const baseFreq = pianoKey.freq * multiplier;
+
+        // Synthesis with instrument profile
+        const instrument = instruments[state.instrument];
+        const voice = { oscs: [], gain: audioCtx.createGain() };
+        voice.gain.gain.setValueAtTime(0, now);
+        voice.gain.gain.linearRampToValueAtTime(0.3 / intervals.length, now + instrument.attack);
+        voice.gain.connect(filter);
+
+        intervals.forEach((r_semitones, i) => {
+            const ratio = Math.pow(2, r_semitones / 12);
+            const osc1 = audioCtx.createOscillator(); osc1.type = instrument.osc1; osc1.frequency.value = baseFreq * ratio;
+            const osc2 = audioCtx.createOscillator(); osc2.type = instrument.osc2; osc2.frequency.value = baseFreq * ratio;
+            if(i > 0) osc1.detune.value = Math.random() * 5 - 2.5;
+            osc1.connect(voice.gain); osc2.connect(voice.gain);
+            osc1.start(now); osc2.start(now);
+            voice.oscs.push(osc1, osc2);
+        });
+
+        activeVoices[uniqueId] = voice;
+
+        // Find corresponding circle segment and highlight it
+        let circleKey;
+        if(isMinorContext) {
+            // For minor context, find the key where the minor note matches
+            circleKey = keys.find(k => k.minNote.startsWith(pianoKey.note));
+        } else {
+            // For major context, find the key where the major note matches
+            circleKey = keys.find(k => k.note === pianoKey.note);
+        }
+        if(circleKey) {
+            highlightSegment(circleKey.code, true, isMinorContext);
+        }
+
+        // Update Visuals - create a display object
+        const displayData = {
+            note: pianoKey.note,
+            color: circleKey ? circleKey.color : "#45a29e",
+            code: pianoKey.code
+        };
+
+        // Update display based on mode
+        if (chordType === 'default') {
+            // Multi-note detection mode
+            updatePianoHub(displayData, '');
+            analyzeActiveNotes();
+        } else {
+            // Preset chord mode (with modifiers)
+            updatePianoHub(displayData, chordName);
+            showPianoChordInfo(pianoKey, intervals, chordName);
+        }
+    }
+
+    function stopNote(uniqueId, isInner) {
+        if(!activeVoices[uniqueId]) return;
+        const voice = activeVoices[uniqueId];
+        const now = audioCtx.currentTime;
+        const instrument = instruments[state.instrument];
+        const releaseTime = instrument.release;
+
+        voice.gain.gain.cancelScheduledValues(now);
+        voice.gain.gain.setValueAtTime(voice.gain.gain.value, now);
+        voice.gain.gain.exponentialRampToValueAtTime(0.001, now + releaseTime);
+        voice.oscs.forEach(osc => osc.stop(now + releaseTime));
+        setTimeout(() => { voice.gain.disconnect(); }, (releaseTime + 0.05) * 1000);
+        delete activeVoices[uniqueId];
+
+        // Remove from active notes tracking
+        activeNotes.delete(uniqueId);
+
+        // Handle unhighlighting for both circle and piano modes
+        if(uniqueId.includes('-piano')) {
+            // Piano mode: find the corresponding circle segment
+            const pianoCode = uniqueId.split('-')[0];
+            const pianoKey = pianoKeys.find(k => k.code === pianoCode);
+            if(pianoKey) {
+                // The wasMinorContext should match what was passed to startPianoNote
+                // Since we can't track it, we use the current isInner parameter
+                const wasMinorContext = isInner;
+                let circleKey;
+                if(wasMinorContext) {
+                    // For minor context, find the key where the minor note matches
+                    circleKey = keys.find(k => k.minNote.startsWith(pianoKey.note));
+                } else {
+                    // For major context, find the key where the major note matches
+                    circleKey = keys.find(k => k.note === pianoKey.note);
+                }
+                if(circleKey) {
+                    highlightSegment(circleKey.code, false, wasMinorContext);
+                }
+            }
+        } else {
+            // Circle mode: use the original code
+            highlightSegment(uniqueId.split('-')[0], false, isInner);
+        }
+
+        // Re-analyze remaining active notes
+        analyzeActiveNotes();
+    }
+
+    function stopAllNotes() {
+        Object.keys(activeVoices).forEach(id => stopNote(id, id.includes('min')));
+        activeNotes.clear();
+    }
+
+    // -- SVG GEOMETRY --
+    // ViewBox 0 0 170 170 -> Center is 85, 85
+    const svg = document.getElementById('wheel');
+    const C = 85;
+
+    const rOuter = 70;
+    const rSplit = 45; // Boundary between Major and Minor (expanded outer ring)
+    const rInner = 15; // Center Hole
+
+    // Label Positions
+    const rLabelMajor = 60; // Top part of outer ring
+    const rLabelNum   = 50; // Bottom part of outer ring
+    const rLabelMinor = 38; // Center of inner ring
+
+    function polarToCart(deg, r) {
+        const rad = deg * Math.PI / 180;
+        return { x: C + r * Math.cos(rad), y: C + r * Math.sin(rad) };
+    }
+
+    function createWheel() {
+        const slice = 360 / 12;
+        keys.forEach((k, i) => {
+            const angle = -90 + (i * 30);
+            
+            // Paths
+            const pOut1 = polarToCart(angle - slice/2, rOuter);
+            const pOut2 = polarToCart(angle + slice/2, rOuter);
+            const pOut3 = polarToCart(angle + slice/2, rSplit);
+            const pOut4 = polarToCart(angle - slice/2, rSplit);
+            const dOuter = `M ${pOut1.x} ${pOut1.y} A ${rOuter} ${rOuter} 0 0 1 ${pOut2.x} ${pOut2.y} L ${pOut3.x} ${pOut3.y} A ${rSplit} ${rSplit} 0 0 0 ${pOut4.x} ${pOut4.y} Z`;
+
+            const pIn1 = pOut4;
+            const pIn2 = pOut3;
+            const pIn3 = polarToCart(angle + slice/2, rInner);
+            const pIn4 = polarToCart(angle - slice/2, rInner);
+            const dInner = `M ${pIn1.x} ${pIn1.y} A ${rSplit} ${rSplit} 0 0 1 ${pIn2.x} ${pIn2.y} L ${pIn3.x} ${pIn3.y} A ${rInner} ${rInner} 0 0 0 ${pIn4.x} ${pIn4.y} Z`;
+
+            const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+
+            // Major Segment
+            const pathMaj = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            pathMaj.setAttribute("d", dOuter);
+            pathMaj.setAttribute("class", "segment-path");
+            pathMaj.setAttribute("fill", k.color);
+            pathMaj.setAttribute("fill-opacity", "0.2");
+            pathMaj.setAttribute("id", `seg-maj-${k.code}`);
+
+            // Minor Segment
+            const pathMin = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            pathMin.setAttribute("d", dInner);
+            pathMin.setAttribute("class", "segment-path");
+            pathMin.setAttribute("fill", k.color);
+            pathMin.setAttribute("fill-opacity", "0.1");
+            pathMin.setAttribute("id", `seg-min-${k.code}`);
+
+            // Text: Major Note (Outer Edge)
+            const posMaj = polarToCart(angle, rLabelMajor);
+            const textMaj = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            textMaj.setAttribute("x", posMaj.x); textMaj.setAttribute("y", posMaj.y);
+            textMaj.setAttribute("class", "label-text note-label-major");
+            textMaj.textContent = k.note;
+
+            // Text: Number (Inner Edge of Outer Ring)
+            const posNum = polarToCart(angle, rLabelNum);
+            const textNum = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            textNum.setAttribute("x", posNum.x); textNum.setAttribute("y", posNum.y);
+            textNum.setAttribute("class", "label-text number-label");
+            textNum.textContent = k.label;
+
+            // Text: Minor Note (Center of Inner Ring)
+            const posMin = polarToCart(angle, rLabelMinor);
+            const textMin = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            textMin.setAttribute("x", posMin.x); textMin.setAttribute("y", posMin.y);
+            textMin.setAttribute("class", "label-text note-label-minor");
+            textMin.textContent = k.minNote;
+
+            // Events
+            pathMaj.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                let chordType = 'default';
+                if (e.shiftKey) chordType = 'shift';
+                else if (e.ctrlKey) chordType = 'ctrl';
+                else if (e.altKey) chordType = 'alt';
+                startNote(k, k.code+'-m-maj', false, chordType);
+            });
+            pathMaj.addEventListener('mouseup', () => stopNote(k.code+'-m-maj', false));
+            pathMaj.addEventListener('mouseleave', () => stopNote(k.code+'-m-maj', false));
+
+            pathMin.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                let chordType = 'default';
+                if (e.shiftKey) chordType = 'shift';
+                else if (e.ctrlKey) chordType = 'ctrl';
+                else if (e.altKey) chordType = 'alt';
+                startNote(k, k.code+'-m-min', true, chordType);
+            });
+            pathMin.addEventListener('mouseup', () => stopNote(k.code+'-m-min', true));
+            pathMin.addEventListener('mouseleave', () => stopNote(k.code+'-m-min', true));
+
+            g.append(pathMaj, pathMin, textMaj, textNum, textMin);
+            svg.appendChild(g);
+        });
+    }
+
+    // -- UI UPDATES --
+    function updateHub(data, isInner, chordName = '') {
+        document.getElementById('hub-label').style.color = data.color;
+        document.getElementById('hub-label').textContent = isInner ? data.minNote : data.note;
+
+        // Show mood and chord type
+        const mood = isInner ? data.minMood : data.majMood;
+        const moodText = chordName ? `${chordName} · ${mood}` : mood;
+        document.getElementById('hub-mood').textContent = moodText;
+
+        // Update instructions to show current key signature
+        const keyName = isInner ? data.minNote : data.note;
+        document.getElementById('hub').querySelector('.hub-instructions').textContent =
+            `${keyName} Key · Circle of Fifths`;
+
+        document.getElementById('hub').style.boxShadow = `inset 0 0 60px ${data.color}40`;
+        document.getElementById('hub').style.borderColor = data.color;
+    }
+
+    function updatePianoHub(data, chordName) {
+        document.getElementById('hub-label').style.color = data.color;
+        document.getElementById('hub-label').textContent = data.note;
+        document.getElementById('hub-mood').textContent = chordName;
+
+        // Update instructions for piano mode
+        document.getElementById('hub').querySelector('.hub-instructions').textContent =
+            `Playing ${data.note} · Piano Mode`;
+
+        document.getElementById('hub').style.boxShadow = `inset 0 0 60px ${data.color}40`;
+        document.getElementById('hub').style.borderColor = data.color;
+    }
+
+    function showChordInfo(data, isInner, intervals, chordName) {
+        const panel = document.getElementById('chord-display');
+        const title = document.getElementById('cd-name');
+        const notes = document.getElementById('cd-notes');
+        const ints = document.getElementById('cd-intervals');
+
+        // Determine Root Index (Major or Relative Minor)
+        // Note: The data.chromaticIndex is for the Major Key.
+        // Relative minor is Major Index + 9 (or -3) semitones.
+        let rootIdx = data.chromaticIndex;
+        if(isInner) rootIdx = (rootIdx + 9) % 12;
+
+        const fullChordName = isInner ? `${data.minNote} ${chordName}` : `${data.note} ${chordName}`;
+        const spelled = spellChord(rootIdx, intervals);
+
+        // Generate interval text based on intervals
+        let intervalText = '';
+        if (intervals.length === 1) {
+            intervalText = 'Single Note';
+        } else if (intervals.length === 3) {
+            if (intervals[1] === 3 && intervals[2] === 6) {
+                intervalText = 'Root - Min 3rd - Dim 5th';
+            } else if (intervals[1] === 3) {
+                intervalText = 'Root - Min 3rd - Perf 5th';
+            } else if (intervals[1] === 4) {
+                intervalText = 'Root - Maj 3rd - Perf 5th';
+            }
+        } else if (intervals.length === 4) {
+            if (intervals[1] === 3) {
+                intervalText = 'Root - Min 3rd - Perf 5th - Min 7th';
+            } else {
+                intervalText = 'Root - Maj 3rd - Perf 5th - Maj 7th';
+            }
+        }
+
+        title.textContent = fullChordName;
+        notes.textContent = spelled;
+        ints.textContent = intervalText;
+
+        panel.classList.add('visible');
+    }
+
+    function showPianoChordInfo(pianoKey, intervals, chordName) {
+        const panel = document.getElementById('chord-display');
+        const title = document.getElementById('cd-name');
+        const notes = document.getElementById('cd-notes');
+        const ints = document.getElementById('cd-intervals');
+
+        const fullChordName = `${pianoKey.note} ${chordName}`;
+        const spelled = spellChord(pianoKey.chromaticIndex, intervals);
+
+        // Generate interval text based on intervals
+        let intervalText = '';
+        if (intervals.length === 1) {
+            intervalText = 'Single Note';
+        } else if (intervals.length === 3) {
+            if (intervals[1] === 3 && intervals[2] === 6) {
+                intervalText = 'Root - Min 3rd - Dim 5th';
+            } else if (intervals[1] === 3) {
+                intervalText = 'Root - Min 3rd - Perf 5th';
+            } else if (intervals[1] === 4) {
+                intervalText = 'Root - Maj 3rd - Perf 5th';
+            }
+        } else if (intervals.length === 4) {
+            if (intervals[1] === 3) {
+                intervalText = 'Root - Min 3rd - Perf 5th - Min 7th';
+            } else {
+                intervalText = 'Root - Maj 3rd - Perf 5th - Maj 7th';
+            }
+        }
+
+        title.textContent = fullChordName;
+        notes.textContent = spelled;
+        ints.textContent = intervalText;
+
+        panel.classList.add('visible');
+    }
+
+    function highlightSegment(code, isActive, isInner) {
+        const id = isInner ? `seg-min-${code}` : `seg-maj-${code}`;
+        const el = document.getElementById(id);
+        if(el) isActive ? el.classList.add('active') : el.classList.remove('active');
+    }
+
+    function updateCapsUI(isOn) {
+        const light = document.getElementById('caps-light');
+        const text = document.getElementById('caps-text');
+        if(!light || !text) return; // Safety check
+
+        if(isOn) {
+            light.classList.add('on');
+            text.classList.add('on');
+            text.textContent = "CAPS ON (MINOR)";
+        } else {
+            light.classList.remove('on');
+            text.classList.remove('on');
+            text.textContent = "CAPS OFF (MAJOR)";
+        }
+    }
+
+    function updateOctaveDisplay() {
+        const display = document.getElementById('octave-display');
+        const octave = state.baseOctave;
+        display.textContent = octave > 0 ? `+${octave}` : octave.toString();
+    }
+
+    // -- INPUT HANDLING --
+    window.addEventListener('keydown', (e) => {
+        if(e.repeat || e.metaKey) return;
+
+        // Permanent Octave Controls
+        if(e.code === 'ArrowUp') {
+            e.preventDefault();
+            state.baseOctave = Math.min(state.baseOctave + 1, 3);
+            updateOctaveDisplay();
+            return;
+        }
+        if(e.code === 'ArrowDown') {
+            e.preventDefault();
+            state.baseOctave = Math.max(state.baseOctave - 1, -3);
+            updateOctaveDisplay();
+            return;
+        }
+
+        // Temporary Octave Shift
+        if(e.code === 'Space') { e.preventDefault(); state.tempOctave = -1; }
+        if(e.code === 'Enter') { e.preventDefault(); state.tempOctave = 1; }
+
+        // Update Caps State UI immediately
+        const isCaps = e.getModifierState("CapsLock");
+        updateCapsUI(isCaps);
+
+        // When Caps Lock is ON, prioritize circle mode (minor)
+        // When Caps Lock is OFF, use piano mode
+        if(isCaps) {
+            // CAPS ON: Use circle mode (minor)
+            const k = keys.find(i => i.code === e.code);
+            if(k) {
+                // Determine chord type based on modifier keys
+                let chordType = 'default';
+                if (e.shiftKey) {
+                    chordType = 'shift';
+                } else if (e.ctrlKey) {
+                    chordType = 'ctrl';
+                } else if (e.altKey) {
+                    chordType = 'alt';
+                }
+                // Play inner ring (minor) when caps is on
+                startNote(k, k.code+'-kb', true, chordType);
+                return;
+            } else {
+                // If not found in circle keys, try piano keys (for K, L, ;, ' etc.)
+                const pianoKey = pianoKeys.find(i => i.code === e.code);
+                if(pianoKey) {
+                    let chordType = 'default';
+                    if (e.shiftKey) {
+                        chordType = 'shift';
+                    } else if (e.ctrlKey) {
+                        chordType = 'ctrl';
+                    } else if (e.altKey) {
+                        chordType = 'alt';
+                    }
+                    // Force minor context when caps is on
+                    startPianoNote(pianoKey, pianoKey.code+'-piano', chordType, true);
+                    return;
+                }
+            }
+        } else {
+            // CAPS OFF: Use piano mode
+            const pianoKey = pianoKeys.find(i => i.code === e.code);
+            if(pianoKey) {
+                // Determine chord type based on modifier keys
+                let chordType = 'default';
+                if (e.shiftKey) {
+                    chordType = 'shift';
+                } else if (e.ctrlKey) {
+                    chordType = 'ctrl';
+                } else if (e.altKey) {
+                    chordType = 'alt';
+                }
+                startPianoNote(pianoKey, pianoKey.code+'-piano', chordType);
+                return;
+            }
+
+            // Fallback to circle keys (major) when caps is off
+            const k = keys.find(i => i.code === e.code);
+            if(k) {
+                // Determine chord type based on modifier keys
+                let chordType = 'default';
+                if (e.shiftKey) {
+                    chordType = 'shift';
+                } else if (e.ctrlKey) {
+                    chordType = 'ctrl';
+                } else if (e.altKey) {
+                    chordType = 'alt';
+                }
+                // Play outer ring (major) when caps is off
+                startNote(k, k.code+'-kb', false, chordType);
+            }
+        }
+    });
+
+    window.addEventListener('keyup', (e) => {
+        const isCaps = e.getModifierState("CapsLock");
+        updateCapsUI(isCaps); // Check in case user toggled Caps without playing
+
+        if(e.code === 'Space' || e.code === 'Enter') state.tempOctave = 0;
+
+        // Match the keydown logic
+        if(isCaps) {
+            // CAPS ON: Stop circle mode notes (minor)
+            const k = keys.find(i => i.code === e.code);
+            if(k) {
+                stopNote(k.code+'-kb', true);
+            } else {
+                // If not found in circle keys, try piano keys (for K, L, ;, ' etc.)
+                const pianoKey = pianoKeys.find(i => i.code === e.code);
+                if(pianoKey) {
+                    stopNote(pianoKey.code+'-piano', false);
+                }
+            }
+        } else {
+            // CAPS OFF: Stop piano mode notes first
+            const pianoKey = pianoKeys.find(i => i.code === e.code);
+            if(pianoKey) {
+                stopNote(pianoKey.code+'-piano', false);
+                return;
+            }
+
+            // Fallback to circle keys (major)
+            const k = keys.find(i => i.code === e.code);
+            if(k) {
+                stopNote(k.code+'-kb', false);
+            }
+        }
+    });
+
+    // Detect Caps Lock changes even when clicking
+    window.addEventListener('mouseup', (e) => {
+        updateCapsUI(e.getModifierState("CapsLock"));
+    });
+
+    window.addEventListener('blur', () => { stopAllNotes(); state.tempOctave = 0; });
+    
+    function startApp() {
+        initAudio();
+        document.getElementById('overlay').style.opacity = 0;
+        setTimeout(() => document.getElementById('overlay').remove(), 500);
+        // Initial check
+        // We can't check CapsLock state reliably until a key event,
+        // but we assume OFF until proven otherwise.
+    }
+
+    // Instrument selector
+    document.getElementById('instrument-select').addEventListener('change', (e) => {
+        state.instrument = e.target.value;
+    });
+
+    createWheel();
+</script>
+</body>
+</html>
