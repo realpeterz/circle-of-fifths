@@ -425,11 +425,21 @@
             <span>Instrument</span>
             <div class="btn-row">
                 <select id="instrument-select" style="background: rgba(255,255,255,0.05); border: 1px solid #444; color: #aaa; padding: 2px 8px; border-radius: 4px; font-size: 0.65rem;">
-                    <option value="default">Synth</option>
-                    <option value="piano">Piano</option>
+                    <option value="default">Analog Synth</option>
+                    <option value="piano">Studio Piano</option>
+                    <option value="felt_piano">Felt Piano</option>
+                    <option value="e_piano">Electric Piano</option>
                     <option value="organ">Organ</option>
                     <option value="strings">Strings</option>
-                    <option value="pad">Pad</option>
+                    <option value="pad">Airy Pad</option>
+                    <option value="guitar">Nylon Guitar</option>
+                    <option value="harp">Harp</option>
+                    <option value="bass">Bass</option>
+                    <option value="brass">Brass</option>
+                    <option value="flute">Flute</option>
+                    <option value="choir">Choir</option>
+                    <option value="bell">Bell</option>
+                    <option value="mallet">Mallet</option>
                 </select>
             </div>
         </div>
@@ -532,7 +542,7 @@
     ];
 
     // -- AUDIO ENGINE --
-    let audioCtx, masterGain, compressor, filter;
+    let audioCtx, masterGain, compressor, saturation, dryBus, wetBus, reverb, noiseBuffer;
     let activeVoices = {};
     let activeNotes = new Map(); // Track currently playing notes: code -> {chromaticIndex, note, color}
     let state = { baseOctave: 0, tempOctave: 0, instrument: 'default' };
@@ -540,21 +550,431 @@
 
     // Instrument profiles
     const instruments = {
-        default: { name: 'Synth', osc1: 'triangle', osc2: 'sine', filterFreq: 3500, attack: 0.05, release: 0.5 },
-        piano: { name: 'Piano', osc1: 'triangle', osc2: 'sine', filterFreq: 5000, attack: 0.01, release: 0.8 },
-        organ: { name: 'Organ', osc1: 'sine', osc2: 'square', filterFreq: 4000, attack: 0.02, release: 0.3 },
-        strings: { name: 'Strings', osc1: 'sawtooth', osc2: 'triangle', filterFreq: 3000, attack: 0.2, release: 1.2 },
-        pad: { name: 'Pad', osc1: 'sawtooth', osc2: 'sine', filterFreq: 2500, attack: 0.3, release: 1.5 }
+        default: {
+            name: 'Analog Synth',
+            oscillators: [
+                { type: 'sawtooth', gain: 0.55, detune: -5 },
+                { type: 'triangle', gain: 0.32, detune: 5 },
+                { type: 'sine', gain: 0.15 }
+            ],
+            env: { attack: 0.02, decay: 0.18, sustain: 0.7, release: 0.6 },
+            filter: { type: 'lowpass', freq: 4200, q: 0.7, envAmount: 1400, envDecay: 0.25 },
+            vibrato: { rate: 5.2, depth: 8 },
+            reverb: 0.18,
+            noise: 0,
+            stereo: 0.2,
+            level: 0.35,
+            randomDetune: 4
+        },
+        piano: {
+            name: 'Studio Piano',
+            oscillators: [
+                { type: 'triangle', gain: 0.55 },
+                { type: 'sine', gain: 0.25 },
+                { type: 'sawtooth', gain: 0.2, detune: -2 }
+            ],
+            env: { attack: 0.005, decay: 0.3, sustain: 0.2, release: 1.1 },
+            filter: { type: 'lowpass', freq: 4800, q: 0.9, envAmount: 2000, envDecay: 0.12 },
+            vibrato: null,
+            reverb: 0.32,
+            noise: 0.16,
+            stereo: 0.22,
+            level: 0.33,
+            randomDetune: 2
+        },
+        felt_piano: {
+            name: 'Felt Piano',
+            oscillators: [
+                { type: 'triangle', gain: 0.6 },
+                { type: 'sine', gain: 0.25 },
+                { type: 'sawtooth', gain: 0.15, detune: -1 }
+            ],
+            env: { attack: 0.01, decay: 0.35, sustain: 0.15, release: 1.3 },
+            filter: { type: 'lowpass', freq: 3200, q: 0.8, envAmount: 900, envDecay: 0.2 },
+            vibrato: null,
+            reverb: 0.38,
+            noise: 0.12,
+            stereo: 0.24,
+            level: 0.32,
+            randomDetune: 2
+        },
+        e_piano: {
+            name: 'Electric Piano',
+            oscillators: [
+                { type: 'sine', gain: 0.55 },
+                { type: 'triangle', gain: 0.3, detune: -4 },
+                { type: 'sine', gain: 0.15, ratio: 2 }
+            ],
+            env: { attack: 0.01, decay: 0.25, sustain: 0.45, release: 0.9 },
+            filter: { type: 'lowpass', freq: 4200, q: 0.7, envAmount: 1200, envDecay: 0.2 },
+            vibrato: { rate: 4.5, depth: 10 },
+            reverb: 0.28,
+            noise: 0.05,
+            stereo: 0.2,
+            level: 0.32,
+            randomDetune: 2
+        },
+        organ: {
+            name: 'Organ',
+            oscillators: [
+                { type: 'sine', gain: 0.5, ratio: 1 },
+                { type: 'sine', gain: 0.3, ratio: 2 },
+                { type: 'square', gain: 0.2, ratio: 1 }
+            ],
+            env: { attack: 0.02, decay: 0.1, sustain: 0.9, release: 0.3 },
+            filter: { type: 'lowpass', freq: 5000, q: 0.4, envAmount: 0, envDecay: 0.1 },
+            vibrato: null,
+            reverb: 0.22,
+            noise: 0,
+            stereo: 0.1,
+            level: 0.32,
+            randomDetune: 1
+        },
+        strings: {
+            name: 'Strings',
+            oscillators: [
+                { type: 'sawtooth', gain: 0.5, detune: -4 },
+                { type: 'sawtooth', gain: 0.4, detune: 4 },
+                { type: 'triangle', gain: 0.2 }
+            ],
+            env: { attack: 0.25, decay: 0.4, sustain: 0.85, release: 1.6 },
+            filter: { type: 'lowpass', freq: 3600, q: 0.9, envAmount: 800, envDecay: 0.3 },
+            vibrato: { rate: 5.8, depth: 14 },
+            reverb: 0.48,
+            noise: 0.02,
+            stereo: 0.35,
+            level: 0.33,
+            randomDetune: 6
+        },
+        pad: {
+            name: 'Airy Pad',
+            oscillators: [
+                { type: 'sawtooth', gain: 0.45, detune: -6 },
+                { type: 'sawtooth', gain: 0.45, detune: 6 },
+                { type: 'sine', gain: 0.15 }
+            ],
+            env: { attack: 0.45, decay: 0.6, sustain: 0.9, release: 2.2 },
+            filter: { type: 'lowpass', freq: 2500, q: 0.7, envAmount: 700, envDecay: 0.6 },
+            vibrato: { rate: 4.2, depth: 8 },
+            reverb: 0.6,
+            noise: 0,
+            stereo: 0.45,
+            level: 0.3,
+            randomDetune: 8
+        },
+        guitar: {
+            name: 'Nylon Guitar',
+            oscillators: [
+                { type: 'triangle', gain: 0.5 },
+                { type: 'sawtooth', gain: 0.25, detune: -3 },
+                { type: 'sine', gain: 0.2, ratio: 2 }
+            ],
+            env: { attack: 0.008, decay: 0.25, sustain: 0.3, release: 0.5 },
+            filter: { type: 'lowpass', freq: 3200, q: 0.7, envAmount: 800, envDecay: 0.15 },
+            vibrato: null,
+            reverb: 0.25,
+            noise: 0.12,
+            stereo: 0.2,
+            level: 0.32,
+            randomDetune: 3
+        },
+        harp: {
+            name: 'Harp',
+            oscillators: [
+                { type: 'triangle', gain: 0.55 },
+                { type: 'sawtooth', gain: 0.25 },
+                { type: 'sine', gain: 0.2, ratio: 2 }
+            ],
+            env: { attack: 0.008, decay: 0.4, sustain: 0.25, release: 1.4 },
+            filter: { type: 'lowpass', freq: 3600, q: 0.7, envAmount: 1000, envDecay: 0.2 },
+            vibrato: null,
+            reverb: 0.4,
+            noise: 0.1,
+            stereo: 0.3,
+            level: 0.32,
+            randomDetune: 3
+        },
+        bass: {
+            name: 'Bass',
+            oscillators: [
+                { type: 'sawtooth', gain: 0.55 },
+                { type: 'square', gain: 0.25, detune: -4 },
+                { type: 'sine', gain: 0.2, ratio: 0.5 }
+            ],
+            env: { attack: 0.02, decay: 0.2, sustain: 0.6, release: 0.5 },
+            filter: { type: 'lowpass', freq: 1200, q: 0.9, envAmount: 400, envDecay: 0.2 },
+            vibrato: null,
+            reverb: 0.1,
+            noise: 0,
+            stereo: 0.1,
+            level: 0.36,
+            randomDetune: 2
+        },
+        brass: {
+            name: 'Brass',
+            oscillators: [
+                { type: 'sawtooth', gain: 0.6 },
+                { type: 'square', gain: 0.3 },
+                { type: 'triangle', gain: 0.15 }
+            ],
+            env: { attack: 0.05, decay: 0.2, sustain: 0.7, release: 0.9 },
+            filter: { type: 'lowpass', freq: 2800, q: 1, envAmount: 1200, envDecay: 0.2 },
+            vibrato: { rate: 5, depth: 6 },
+            reverb: 0.35,
+            noise: 0.02,
+            stereo: 0.2,
+            level: 0.33,
+            randomDetune: 4
+        },
+        flute: {
+            name: 'Flute',
+            oscillators: [
+                { type: 'sine', gain: 0.65 },
+                { type: 'triangle', gain: 0.25 },
+                { type: 'sine', gain: 0.1, ratio: 2 }
+            ],
+            env: { attack: 0.08, decay: 0.2, sustain: 0.85, release: 1 },
+            filter: { type: 'lowpass', freq: 4200, q: 0.4, envAmount: 500, envDecay: 0.2 },
+            vibrato: { rate: 5.5, depth: 15 },
+            reverb: 0.4,
+            noise: 0,
+            stereo: 0.3,
+            level: 0.3,
+            randomDetune: 2
+        },
+        choir: {
+            name: 'Choir',
+            oscillators: [
+                { type: 'triangle', gain: 0.5 },
+                { type: 'sawtooth', gain: 0.3 },
+                { type: 'sine', gain: 0.2 }
+            ],
+            env: { attack: 0.2, decay: 0.4, sustain: 0.8, release: 1.8 },
+            filter: { type: 'lowpass', freq: 3000, q: 1.1, envAmount: 900, envDecay: 0.4 },
+            vibrato: { rate: 5, depth: 10 },
+            reverb: 0.55,
+            noise: 0.02,
+            stereo: 0.4,
+            level: 0.3,
+            randomDetune: 5
+        },
+        bell: {
+            name: 'Bell',
+            oscillators: [
+                { type: 'sine', gain: 0.6, ratio: 1 },
+                { type: 'sine', gain: 0.25, ratio: 2.01 },
+                { type: 'triangle', gain: 0.2, ratio: 3.99 }
+            ],
+            env: { attack: 0.005, decay: 1.2, sustain: 0, release: 2.2 },
+            filter: { type: 'lowpass', freq: 8000, q: 0.7, envAmount: 0, envDecay: 0.2 },
+            vibrato: null,
+            reverb: 0.5,
+            noise: 0,
+            stereo: 0.35,
+            level: 0.28,
+            randomDetune: 1
+        },
+        mallet: {
+            name: 'Mallet',
+            oscillators: [
+                { type: 'triangle', gain: 0.5 },
+                { type: 'sine', gain: 0.25 },
+                { type: 'sawtooth', gain: 0.2, ratio: 2 }
+            ],
+            env: { attack: 0.003, decay: 0.4, sustain: 0.1, release: 1.2 },
+            filter: { type: 'lowpass', freq: 5000, q: 0.8, envAmount: 1800, envDecay: 0.15 },
+            vibrato: null,
+            reverb: 0.45,
+            noise: 0.08,
+            stereo: 0.25,
+            level: 0.3,
+            randomDetune: 2
+        }
     };
+
+    function makeDistortionCurve(amount) {
+        const k = typeof amount === 'number' ? amount : 0;
+        const n = 44100;
+        const curve = new Float32Array(n);
+        const deg = Math.PI / 180;
+        for (let i = 0; i < n; i++) {
+            const x = (i * 2) / n - 1;
+            curve[i] = (3 + k) * x * 20 * deg / (Math.PI + k * Math.abs(x));
+        }
+        return curve;
+    }
+
+    function createImpulseResponse(ctx, duration, decay) {
+        const sampleRate = ctx.sampleRate;
+        const length = Math.floor(sampleRate * duration);
+        const impulse = ctx.createBuffer(2, length, sampleRate);
+        for (let channel = 0; channel < impulse.numberOfChannels; channel++) {
+            const data = impulse.getChannelData(channel);
+            for (let i = 0; i < length; i++) {
+                const t = i / length;
+                data[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, decay);
+            }
+        }
+        return impulse;
+    }
+
+    function createNoiseBuffer(ctx, duration) {
+        const sampleRate = ctx.sampleRate;
+        const length = Math.floor(sampleRate * duration);
+        const buffer = ctx.createBuffer(1, length, sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < length; i++) {
+            data[i] = Math.random() * 2 - 1;
+        }
+        return buffer;
+    }
 
     function initAudio() {
         if (audioCtx) return;
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         audioCtx = new AudioContext();
-        filter = audioCtx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 3500; filter.Q.value = 0.5;
-        compressor = audioCtx.createDynamicsCompressor(); compressor.threshold.value = -12;
-        masterGain = audioCtx.createGain(); masterGain.gain.value = 0.7;
-        filter.connect(compressor); compressor.connect(masterGain); masterGain.connect(audioCtx.destination);
+
+        dryBus = audioCtx.createGain();
+        wetBus = audioCtx.createGain();
+        masterGain = audioCtx.createGain();
+        compressor = audioCtx.createDynamicsCompressor();
+        saturation = audioCtx.createWaveShaper();
+        reverb = audioCtx.createConvolver();
+
+        dryBus.gain.value = 0.9;
+        wetBus.gain.value = 0.7;
+        masterGain.gain.value = 0.85;
+
+        compressor.threshold.value = -14;
+        compressor.knee.value = 12;
+        compressor.ratio.value = 3.5;
+        compressor.attack.value = 0.01;
+        compressor.release.value = 0.2;
+
+        saturation.curve = makeDistortionCurve(0.6);
+        saturation.oversample = '2x';
+
+        reverb.buffer = createImpulseResponse(audioCtx, 2.4, 3.2);
+        noiseBuffer = createNoiseBuffer(audioCtx, 0.6);
+
+        dryBus.connect(masterGain);
+        wetBus.connect(masterGain);
+        masterGain.connect(compressor);
+        compressor.connect(saturation);
+        saturation.connect(audioCtx.destination);
+        reverb.connect(wetBus);
+    }
+
+    function getInstrumentProfile(name) {
+        return instruments[name] || instruments.default;
+    }
+
+    function createVoice(baseFreq, intervals, instrument) {
+        const now = audioCtx.currentTime;
+        const env = instrument.env || {};
+        const attack = Math.max(env.attack || 0.01, 0.003);
+        const decay = Math.max(env.decay || 0.1, 0.01);
+        const sustain = Math.max(env.sustain ?? 0.6, 0.001);
+        const release = Math.max(env.release || 0.6, 0.05);
+        const oscDefs = instrument.oscillators || instruments.default.oscillators;
+
+        const gainScale = 1 / Math.sqrt(Math.max(1, intervals.length));
+        const peak = (instrument.level || 0.3) * gainScale;
+
+        const voiceGain = audioCtx.createGain();
+        voiceGain.gain.setValueAtTime(0.0001, now);
+        voiceGain.gain.exponentialRampToValueAtTime(peak, now + attack);
+        voiceGain.gain.exponentialRampToValueAtTime(Math.max(peak * sustain, 0.0001), now + attack + decay);
+
+        const filter = audioCtx.createBiquadFilter();
+        const filterSettings = instrument.filter || {};
+        filter.type = filterSettings.type || 'lowpass';
+        filter.Q.value = filterSettings.q ?? 0.7;
+
+        const baseFilter = filterSettings.freq || 4000;
+        const envAmount = filterSettings.envAmount || 0;
+        const envDecay = filterSettings.envDecay || decay;
+        if (envAmount > 0) {
+            filter.frequency.setValueAtTime(Math.max(baseFilter + envAmount, 40), now);
+            filter.frequency.exponentialRampToValueAtTime(Math.max(baseFilter, 40), now + envDecay);
+        } else {
+            filter.frequency.setValueAtTime(Math.max(baseFilter, 40), now);
+        }
+
+        const panner = audioCtx.createStereoPanner();
+        const panDepth = instrument.stereo || 0;
+        panner.pan.value = (Math.random() * 2 - 1) * panDepth;
+
+        const reverbSend = audioCtx.createGain();
+        reverbSend.gain.value = instrument.reverb || 0;
+
+        voiceGain.connect(filter);
+        filter.connect(panner);
+        panner.connect(dryBus);
+        panner.connect(reverbSend);
+        reverbSend.connect(reverb);
+
+        const voice = { oscs: [], gain: voiceGain, release, nodes: [filter, panner, reverbSend] };
+        const detuneTargets = [];
+        const detuneRange = instrument.randomDetune || 0;
+
+        intervals.forEach((r_semitones) => {
+            const ratio = Math.pow(2, r_semitones / 12);
+            oscDefs.forEach((partial) => {
+                const osc = audioCtx.createOscillator();
+                const oscGain = audioCtx.createGain();
+                const partialGain = partial.gain ?? 0.5;
+                const partialRatio = partial.ratio ?? 1;
+                const baseDetune = partial.detune || 0;
+                const detuneRand = (Math.random() * 2 - 1) * detuneRange;
+
+                osc.type = partial.type || 'sine';
+                osc.frequency.value = baseFreq * ratio * partialRatio;
+                osc.detune.value = baseDetune + detuneRand;
+
+                oscGain.gain.value = partialGain;
+                osc.connect(oscGain);
+                oscGain.connect(voiceGain);
+                osc.start(now);
+
+                voice.oscs.push(osc);
+                voice.nodes.push(oscGain);
+                detuneTargets.push(osc.detune);
+            });
+        });
+
+        if (instrument.vibrato && instrument.vibrato.depth > 0 && detuneTargets.length) {
+            const lfo = audioCtx.createOscillator();
+            const lfoGain = audioCtx.createGain();
+            lfo.type = 'sine';
+            lfo.frequency.value = instrument.vibrato.rate || 5;
+            lfoGain.gain.value = instrument.vibrato.depth;
+            lfo.connect(lfoGain);
+            detuneTargets.forEach(target => lfoGain.connect(target));
+            lfo.start(now);
+            voice.oscs.push(lfo);
+            voice.nodes.push(lfoGain);
+        }
+
+        if (instrument.noise && noiseBuffer) {
+            const noiseSource = audioCtx.createBufferSource();
+            const noiseGain = audioCtx.createGain();
+            noiseSource.buffer = noiseBuffer;
+
+            noiseGain.gain.setValueAtTime(0.0001, now);
+            noiseGain.gain.exponentialRampToValueAtTime(instrument.noise * peak, now + 0.01);
+            noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
+
+            noiseSource.connect(noiseGain);
+            noiseGain.connect(voiceGain);
+            noiseSource.start(now);
+            noiseSource.stop(now + 0.12);
+
+            voice.nodes.push(noiseGain);
+            voice.noise = noiseSource;
+        }
+
+        return voice;
     }
 
     // Helper: Spell Chord
@@ -706,8 +1126,6 @@
         if(!audioCtx) return;
         if(activeVoices[uniqueId]) return;
 
-        const now = audioCtx.currentTime;
-
         // Determine target frequency
         const targetFreq = isInner ? data.minFreq : data.freq;
 
@@ -757,22 +1175,8 @@
         const baseFreq = targetFreq * multiplier;
 
         // Synthesis with instrument profile
-        const instrument = instruments[state.instrument];
-        const voice = { oscs: [], gain: audioCtx.createGain() };
-        voice.gain.gain.setValueAtTime(0, now);
-        voice.gain.gain.linearRampToValueAtTime(0.3 / intervals.length, now + instrument.attack);
-        voice.gain.connect(filter);
-
-        intervals.forEach((r_semitones, i) => {
-            const ratio = Math.pow(2, r_semitones / 12);
-            const osc1 = audioCtx.createOscillator(); osc1.type = instrument.osc1; osc1.frequency.value = baseFreq * ratio;
-            const osc2 = audioCtx.createOscillator(); osc2.type = instrument.osc2; osc2.frequency.value = baseFreq * ratio;
-            if(i > 0) osc1.detune.value = Math.random() * 5 - 2.5;
-            osc1.connect(voice.gain); osc2.connect(voice.gain);
-            osc1.start(now); osc2.start(now);
-            voice.oscs.push(osc1, osc2);
-        });
-
+        const instrument = getInstrumentProfile(state.instrument);
+        const voice = createVoice(baseFreq, intervals, instrument);
         activeVoices[uniqueId] = voice;
 
         // Update Visuals
@@ -793,8 +1197,6 @@
     function startPianoNote(pianoKey, uniqueId, chordType = 'default', forceMinor = false) {
         if(!audioCtx) return;
         if(activeVoices[uniqueId]) return;
-
-        const now = audioCtx.currentTime;
 
         // Use forceMinor to determine context (set when Caps Lock is on)
         const isMinorContext = forceMinor;
@@ -849,22 +1251,8 @@
         const baseFreq = pianoKey.freq * multiplier;
 
         // Synthesis with instrument profile
-        const instrument = instruments[state.instrument];
-        const voice = { oscs: [], gain: audioCtx.createGain() };
-        voice.gain.gain.setValueAtTime(0, now);
-        voice.gain.gain.linearRampToValueAtTime(0.3 / intervals.length, now + instrument.attack);
-        voice.gain.connect(filter);
-
-        intervals.forEach((r_semitones, i) => {
-            const ratio = Math.pow(2, r_semitones / 12);
-            const osc1 = audioCtx.createOscillator(); osc1.type = instrument.osc1; osc1.frequency.value = baseFreq * ratio;
-            const osc2 = audioCtx.createOscillator(); osc2.type = instrument.osc2; osc2.frequency.value = baseFreq * ratio;
-            if(i > 0) osc1.detune.value = Math.random() * 5 - 2.5;
-            osc1.connect(voice.gain); osc2.connect(voice.gain);
-            osc1.start(now); osc2.start(now);
-            voice.oscs.push(osc1, osc2);
-        });
-
+        const instrument = getInstrumentProfile(state.instrument);
+        const voice = createVoice(baseFreq, intervals, instrument);
         activeVoices[uniqueId] = voice;
 
         // Find corresponding circle segment and highlight it
@@ -903,14 +1291,18 @@
         if(!activeVoices[uniqueId]) return;
         const voice = activeVoices[uniqueId];
         const now = audioCtx.currentTime;
-        const instrument = instruments[state.instrument];
-        const releaseTime = instrument.release;
+        const releaseTime = voice.release || 0.6;
 
         voice.gain.gain.cancelScheduledValues(now);
-        voice.gain.gain.setValueAtTime(voice.gain.gain.value, now);
-        voice.gain.gain.exponentialRampToValueAtTime(0.001, now + releaseTime);
+        voice.gain.gain.setValueAtTime(Math.max(voice.gain.gain.value, 0.0001), now);
+        voice.gain.gain.exponentialRampToValueAtTime(0.0001, now + releaseTime);
         voice.oscs.forEach(osc => osc.stop(now + releaseTime));
-        setTimeout(() => { voice.gain.disconnect(); }, (releaseTime + 0.05) * 1000);
+        setTimeout(() => {
+            voice.gain.disconnect();
+            if (voice.nodes) {
+                voice.nodes.forEach(node => node.disconnect && node.disconnect());
+            }
+        }, (releaseTime + 0.1) * 1000);
         delete activeVoices[uniqueId];
 
         // Remove from active notes tracking
