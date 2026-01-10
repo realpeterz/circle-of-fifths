@@ -4,6 +4,35 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Circle of Fifths Keyboard</title>
+    <meta name="description" content="Interactive circle of fifths keyboard for learning keys, chords, and harmonic relationships. Explore major and minor moods with real-time chord and piano input.">
+    <meta name="robots" content="index, follow">
+    <meta name="application-name" content="Circle of Fifths Keyboard">
+    <meta name="theme-color" content="#050505">
+    <meta property="og:title" content="Circle of Fifths Keyboard">
+    <meta property="og:description" content="Interactive circle of fifths keyboard for learning keys, chords, and harmonic relationships. Explore major and minor moods with real-time chord and piano input.">
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="en_US">
+    <meta property="og:site_name" content="Circle of Fifths Keyboard">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Circle of Fifths Keyboard">
+    <meta name="twitter:description" content="Interactive circle of fifths keyboard for learning keys, chords, and harmonic relationships. Explore major and minor moods with real-time chord and piano input.">
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Circle of Fifths Keyboard",
+        "description": "Interactive circle of fifths keyboard for learning keys, chords, and harmonic relationships. Explore major and minor moods with real-time chord and piano input.",
+        "applicationCategory": "EducationalApplication",
+        "operatingSystem": "Web",
+        "inLanguage": "en",
+        "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+        },
+        "browserRequirements": "Requires Web Audio API and a modern browser."
+    }
+    </script>
     <style>
         :root {
             --bg-color: #050505;
@@ -50,6 +79,14 @@
             color: #888;
             margin-top: 8px;
             letter-spacing: 1px;
+        }
+        .seo-blurb {
+            font-size: 0.65rem;
+            color: #777;
+            margin-top: 6px;
+            letter-spacing: 0.5px;
+            max-width: 720px;
+            line-height: 1.4;
         }
 
         /* Container */
@@ -244,6 +281,9 @@
             .subtitle {
                 font-size: 0.7rem;
             }
+            .seo-blurb {
+                font-size: 0.6rem;
+            }
             
             /* Reduce container size */
             .app-container {
@@ -306,6 +346,9 @@
             .subtitle {
                 font-size: 0.6rem;
             }
+            .seo-blurb {
+                font-size: 0.55rem;
+            }
             
             .app-container {
                 width: 60vmin;
@@ -356,6 +399,9 @@
             .subtitle {
                 font-size: 0.6rem;
             }
+            .seo-blurb {
+                font-size: 0.55rem;
+            }
             
             .app-container {
                 width: 90vmin;
@@ -395,6 +441,7 @@
     <header>
         <h1>Circle of Fifths Keyboard</h1>
         <div class="subtitle">Piano Keyboard (D = Middle C) · Circle (Caps = Minor) · Multi-Note Detection</div>
+        <div class="seo-blurb">Interactive circle of fifths keyboard for learning keys, chords, and harmonic relationships with real-time piano input.</div>
     </header>
 
     <div class="app-container">
