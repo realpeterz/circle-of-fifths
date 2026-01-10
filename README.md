@@ -25,14 +25,6 @@ For each key, the application shows:
 3. **Use keyboard controls** (if available) to play notes
 4. **Explore relationships** between different keys and their relative minors
 
-## File Structure
-
-```
-circle-of-fifths/
-├── README.md
-└── index.html
-```
-
 ## Educational Value
 
 This tool is perfect for:
