@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-All project documentation for agents and developers lives in **[agents.md](./agents.md)**.
+All project documentation for agents and developers lives in **[AGENTS.md](./AGENTS.md)**.
 
 Please read that file for:
 - Project overview and features
